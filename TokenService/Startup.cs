@@ -7,12 +7,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using TokenService.DAO;
+using TokenService.Data;
 using TokenService.Models;
 
 namespace TokenService
@@ -31,7 +33,16 @@ namespace TokenService
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         
-            services.AddTransient<UsersDAO>();
+            // Set the use of the context classes in order to 
+            // access the ASP.NET Identity Core tables
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseSqlServer(Configuration.GetConnectionString("BaseIdentity")));
+
+            // Enabling the utilisation of ASP.NET Identity, in order to
+            // allow the recuperation of their objects through dependency injection
+            services.AddIdentity<ApplicationUser, IdentityRole>()
+               .AddEntityFrameworkStores<ApplicationDbContext>()
+               .AddDefaultTokenProviders();
 
             var signingConfigurations = new SigningConfigurations();
             services.AddSingleton(signingConfigurations);
@@ -53,20 +64,20 @@ namespace TokenService
                 paramsValidation.ValidAudience = tokenConfigurations.Audience;
                 paramsValidation.ValidIssuer = tokenConfigurations.Issuer;
 
-                // Valida a assinatura de um token recebido
+                // Validate the signature of a received token 
                 paramsValidation.ValidateIssuerSigningKey = true;
 
-                // Verifica se um token recebido ainda é válido
+                //Validate if the received token is valid
                 paramsValidation.ValidateLifetime = true;
 
-                // Tempo de tolerância para a expiração de um token (utilizado
-                // caso haja problemas de sincronismo de horário entre diferentes
-                // computadores envolvidos no processo de comunicação)
+                // Tolerance time for the expiration of a token (used
+                // in case there are problems of synchronism of time between different
+                // computers involved in the communication process)
                 paramsValidation.ClockSkew = TimeSpan.Zero;
             });
 
-            // Ativa o uso do token como forma de autorizar o acesso
-            // a recursos deste projeto
+            // Enables the use of the token as a way to grant access
+            // to this project's resources
             services.AddAuthorization(auth =>
             {
                 auth.AddPolicy("Bearer", new AuthorizationPolicyBuilder()
@@ -76,20 +87,24 @@ namespace TokenService
 
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env,
+            ApplicationDbContext context,
+            UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole> roleManager)
         {
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
-            else
-            {
-                app.UseHsts();
-            }
 
-            app.UseHttpsRedirection();
+            // Creating structures, users and permissions
+            // in ASP.NET Identity Core base (if not yet
+            // exist)
+            new IdentityInitializer(context, userManager, roleManager)
+                .Initialize();
+
             app.UseMvc();
         }
+
     }
 }

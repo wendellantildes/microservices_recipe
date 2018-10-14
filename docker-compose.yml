@@ -1,0 +1,38 @@
+﻿version: "3.2"
+
+networks:
+  backend:
+
+services:
+
+  tokenserver:
+    build: 
+      context: TokenService
+      dockerfile: Dockerfile
+    environment:
+         - DatabaseServer=mssqlserver
+         - DatabaseName=BaseIdentity
+         - DatabaseUser=sa
+         - DatabasePassword=TokenService(!)
+    container_name: tokenserviceapi
+    ports:
+      - "5000:80"
+    networks:
+      - backend
+    depends_on:
+      - mssqlserver
+
+
+  mssqlserver:
+    image: "microsoft/mssql-server-linux:latest"
+    container_name: mssqldata
+    ports:
+      - "1402:1433" 
+    networks:
+      - backend
+    environment:
+      - SA_PASSWORD=TokenService(!)
+      - ACCEPT_EULA="Y"
+      
+
+    

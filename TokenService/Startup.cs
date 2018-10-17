@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Swashbuckle.AspNetCore.Swagger;
 using TokenService.Data;
 using TokenService.Models;
 
@@ -33,10 +34,20 @@ namespace TokenService
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         
+            //Use with docker-compose
+            var server = Configuration["DatabaseServer"];
+            var user = Configuration["DatabaseUser"];
+            var password = Configuration["DatabasePassword"];
+            var connectionString = String.Format("Server={0};Initial Catalog=BaseIdentity;User Id={1};Password={2};", server, user, password);
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseSqlServer(connectionString));
+
             // Set the use of the context classes in order to 
             // access the ASP.NET Identity Core tables
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(Configuration.GetConnectionString("BaseIdentity")));
+            //Use in debug
+            //services.AddDbContext<ApplicationDbContext>(options =>
+                //options.UseSqlServer(Configuration.GetConnectionString("BaseIdentity")));
+           
 
             // Enabling the utilisation of ASP.NET Identity, in order to
             // allow the recuperation of their objects through dependency injection
@@ -85,6 +96,24 @@ namespace TokenService
                     .RequireAuthenticatedUser().Build());
             });
 
+            //Swagger
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1",
+                    new Info
+                    {
+                        Title = "Token Service API",
+                        Version = "v1",
+                        Description = "A token service",
+                        Contact = new Contact
+                        {
+                            Name = "Wendell Antildes",
+                            Url = "https://github.com/wendellantildes"
+                        }
+                    });
+            });
+
+
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env,
@@ -104,6 +133,13 @@ namespace TokenService
                 .Initialize();
 
             app.UseMvc();
+
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json",
+                    "Token Service API");
+            });
         }
 
     }

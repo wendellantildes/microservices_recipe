@@ -5,13 +5,12 @@ networks:
 
 services:
 
-  tokenserver:
+  tokenapi:
     build: 
       context: TokenService
       dockerfile: Dockerfile
     environment:
          - DatabaseServer=mssqlserver
-         - DatabaseName=BaseIdentity
          - DatabaseUser=sa
          - DatabasePassword=TokenService(!)
     container_name: tokenserviceapi
@@ -27,7 +26,7 @@ services:
     image: "microsoft/mssql-server-linux:latest"
     container_name: mssqldata
     ports:
-      - "1402:1433" 
+      - "1445:1433" 
     networks:
       - backend
     environment:
